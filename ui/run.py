@@ -6,6 +6,8 @@ from prompt_toolkit.validation import Validator, ValidationError
 from examples import custom_style_2
 from core.SparkInterface import SparkInterface
 
+import re
+
 import os.path
 from os import path
 
@@ -22,7 +24,50 @@ style = style_from_dict({
 spark = SparkInterface()
 
 
-class DatasetValidator(Validator):
+class YearValidator(Validator):
+    def validate(self, document):
+        match = re.match(r'^[1-2][0-9][0-9][0-9]$', document.text)
+        if match is None:
+            raise ValidationError(
+                message="Please enter a valid year",
+                cursor_position=len(document.text)
+            )
+
+
+class IntValidator(Validator):
+    def validate(self, document):
+        try:
+            val = int(document.text)
+        except ValueError:
+            raise ValidationError(
+                message="Please enter a valid value",
+                cursor_position=len(document.text)
+            )
+
+
+class IdValidator(Validator):
+    def validate(self, document):
+        try:
+            id = int(document.text)
+        except ValueError:
+            raise ValidationError(
+                message="Please enter a valid id value",
+                cursor_position=len(document.text)
+            )
+
+
+class IdListValidator(Validator):
+    def validate(self, document):
+        try:
+            ids = [int(i) for i in document.text.split(',')]
+        except ValueError:
+            raise ValidationError(
+                message="Please enter a valid list of ids",
+                cursor_position=len(document.text)
+            )
+
+
+class DatasetPathValidator(Validator):
     def validate(self, document):
         dataset_path = document.text
         if not path.isfile(dataset_path + 'links.csv'):
@@ -69,7 +114,7 @@ def read_dataset():
         'type': 'input',
         'name': 'dataset',
         'message': 'Enter the path to your dataset files',
-        'validate': DatasetValidator
+        'validate': DatasetPathValidator
     }
     answers = prompt(prompt_text)
     spark.read_dataset(answers['dataset'])
@@ -115,7 +160,8 @@ def search_users():
             user_id = prompt({
                 'type': 'input',
                 'name': 'user_id',
-                'message': 'Enter the user ID '
+                'message': 'Enter the user ID ',
+                'validate': IdValidator
             })['user_id']
             user_ids = [int(user_id)]
             # core call to search for users
@@ -124,7 +170,9 @@ def search_users():
             user_ids = prompt({
                 'type': 'input',
                 'name': 'user_id',
-                'message': 'Enter the list of IDs separated by a comma '})['user_id']
+                'message': 'Enter the list of IDs separated by a comma ',
+                'validate': IdListValidator
+            })['user_id']
             user_ids = [int(i) for i in user_ids.split(',')]
             # core call to search for users
             spark.movies_watched_by_users(user_ids).show()
@@ -153,7 +201,8 @@ def search_movies():
             movie_id = prompt({
                 'type': 'input',
                 'name': 'movie_id',
-                'message': 'Enter the movie ID '
+                'message': 'Enter the movie ID ',
+                'validate': IdValidator
             })['movie_id']
             movie_id = int(movie_id)
             # core call
@@ -170,7 +219,8 @@ def search_movies():
             movie_year = prompt({
                 'type': 'input',
                 'name': 'movie_year',
-                'message': 'Enter the movie year '
+                'message': 'Enter the movie year ',
+                'validate': YearValidator
             })['movie_year']
             movie_year = int(movie_year)
             # core call
@@ -180,7 +230,8 @@ def search_movies():
             list_length = prompt({
                 'type': 'input',
                 'name': 'list_length',
-                'message': 'Enter n value '
+                'message': 'Enter n value ',
+                'validate': IntValidator
             })['list_length']
             list_length = int(list_length)
             # core call
@@ -189,7 +240,8 @@ def search_movies():
             list_length = prompt({
                 'type': 'input',
                 'name': 'list_length',
-                'message': 'Enter n value '
+                'message': 'Enter n value ',
+                'validate': IntValidator
             })['list_length']
             list_length = int(list_length)
             # core call
@@ -208,7 +260,7 @@ def search_genres():
         'message': 'Select genres',
         'choices': choices
     })['genres']
-    #call core
+    # call core
     spark.search_movies_by_genres(genres).show()
     return 0
 
