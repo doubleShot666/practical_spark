@@ -52,25 +52,36 @@ class SparkInterface:
 
         self.__reduced_ratings = self.__ratings_df.select(col("userId"), col("movieId")).distinct()
         self.__reduced_tags = self.__tags_df.select(col("userId"), col("movieId")).distinct()
-        self.__movies_user_df = self.__reduced_ratings.union(self.__reduced_tags).distinct()
+        self.__movies_user_df = self.__reduced_ratings.union(self.__reduced_tags).distinct().cache()
+
+    def movies_per_genre_watched_by_user(self, user_id):
+        movies_user_info_df = self.__movies_user_df\
+            .join(self.__movies_df_split_genres,
+                  self.__movies_user_df.movieId == self.__movies_df_split_genres.movieId,
+                  how='inner')\
+            .filter(col("userId") == user_id) \
+            .groupby(col("userId"), col("genres")) \
+            .count() \
+            .orderBy(col("userId"))
+        return movies_user_info_df
 
     def movies_watched_by_users(self, user_ids):
-        movies_user_info_df = self.__movies_user_df.join(self.__movies_df_with_year_col,
-                                                         self.__movies_user_df.movieId == self.__movies_df_with_year_col.movieId,
-                                                         how='inner')
-
         # All movies watched by each user of a given list of users
-        results = movies_user_info_df.select(col("userId"), col("title")) \
+        results = self.__movies_user_df\
+            .join(self.__movies_df_with_year_col,
+                  self.__movies_user_df.movieId == self.__movies_df_with_year_col.movieId,
+                  how='inner')\
+            .select(col("userId"), col("title")) \
             .distinct() \
             .filter(col("userId").isin(user_ids)) \
             .orderBy(col("userId"))
         return results
 
     def avg_rating_per_movie(self):
-        return self.__ratings_df.groupby(col("movieId")).agg(avg('rating').alias('avg'))
+        return self.__ratings_df.groupby(col("movieId")).agg(avg('rating').alias('avg')).cache()
 
     def count_user_per_movie(self):
-        return self.__movies_user_df.groupby(col("movieId")).agg(count("userId").alias('nb_users'))
+        return self.__movies_user_df.groupby(col("movieId")).agg(count("userId").alias('nb_users')).cache()
 
     def search_movie_by_id(self, movie_id):
         return self.__movies_df.filter(col("movieId") == movie_id) \
@@ -79,7 +90,7 @@ class SparkInterface:
 
     def search_movie_by_title(self, title):
         return self.__movies_df.withColumn("key_word", lit(title)) \
-            .filter(self.__movies_df.title.contains(title) | (levenshtein(col("title"), col("key_word")) < 10)) \
+            .filter(self.__movies_df.title.contains(title) | (levenshtein(col("title"), col("key_word")) < 4)) \
             .drop("key_word") \
             .join(self.avg_rating_per_movie(), on='movieId', how='inner') \
             .join(self.count_user_per_movie(), on='movieId', how='inner')
@@ -93,14 +104,21 @@ class SparkInterface:
             "title")
 
     def top_rating_movies(self, length, order):
-        return self.avg_rating_per_movie().orderBy(col("avg").desc()).limit(length).join(self.__movies_df, on="movieId",
-                                                                                         how="inner")
+        return self.avg_rating_per_movie()\
+            .orderBy(col("avg").desc())\
+            .limit(length)\
+            .join(self.__movies_df, on="movieId", how="inner")
 
     def top_watched_movies(self, length, order):
-        return self.count_user_per_movie().orderBy(col("nb_users").desc()). \
-            limit(length). \
-            join(self.__movies_df, on="movieId", how="inner"). \
-            orderBy(col("nb_users").desc())
+        return self.count_user_per_movie()\
+            .orderBy(col("nb_users").desc())\
+            .limit(length)\
+            .join(self.__movies_df, on="movieId", how="inner")\
+            .orderBy(col("nb_users").desc())
 
     def get_genres_list(self):
-        return list(self.__movies_df_split_genres.select(col('genres')).distinct().orderBy('genres').cache().toPandas()['genres'])
+        return list(self.__movies_df_split_genres.select(col('genres'))
+                    .distinct()
+                    .orderBy('genres')
+                    .cache()
+                    .toPandas()['genres'])
