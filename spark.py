@@ -23,11 +23,15 @@ class SparkQuery:
         schema_rating = (StructType().add("userId", IntegerType()).add("movieId", IntegerType()).add("rating", FloatType()).
                          add("timestamp", StringType()))
         self.__ratingsdf = self.__spark .read.csv(datapath + r"\ratings.csv", schema=schema_rating, header=True)
+        self.__ratingsdf =  self.__ratingsdf.dropna()
 
         schema = (StructType().add("movieId", IntegerType()).add("title", StringType()).add("genres", StringType()))
         self.__moviesdf = self.__spark.read.csv(datapath + "\movies.csv", schema=schema, header=True)
         self.__moviesdf = self.__moviesdf.withColumn("genres", explode(split("genres", "[|]")))
         self.__moviesdf = self.__moviesdf.filter(self.__moviesdf.genres != "(no genres listed)")
+        self.__moviesdf = self.__moviesdf.filter(self.__moviesdf.genres != "(s listed)")
+        self.__moviesdf = self.__moviesdf.dropna()
+
 
         self.__favor_genre_df = self.__moviesdf.join(self.__ratingsdf, self.__moviesdf.movieId == self.__ratingsdf.movieId).drop(self.__ratingsdf.movieId).drop(
             self.__ratingsdf.timestamp)
