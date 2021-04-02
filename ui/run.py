@@ -4,7 +4,13 @@ from PyInquirer import style_from_dict, Token, prompt, Separator
 from pprint import pprint
 from prompt_toolkit.validation import Validator, ValidationError
 from examples import custom_style_2
+import requests
 from core.SparkInterface import SparkInterface
+
+#from ui.presentation import Presenter
+
+from bokeh.plotting import figure
+from bokeh.io import show, output_file
 
 import re
 
@@ -163,9 +169,10 @@ def search_users():
                 'message': 'Enter the user ID ',
                 'validate': IdValidator
             })['user_id']
-            user_ids = [int(user_id)]
             # core call to search for users
-            spark.movies_watched_by_users(user_ids).show()
+            requests.post(url='http://localhost:5050/MoviesPerGenreByUser/modify',
+                          data=spark.movies_per_genre_watched_by_user(int(user_id)).toPandas().to_json())
+            #Presenter().show(spark.movies_per_genre_watched_by_user(int(user_id)))
         elif answers['search_users'] == 'By a list of IDs':
             user_ids = prompt({
                 'type': 'input',
@@ -175,7 +182,8 @@ def search_users():
             })['user_id']
             user_ids = [int(i) for i in user_ids.split(',')]
             # core call to search for users
-            spark.movies_watched_by_users(user_ids).show()
+            requests.post(url='http://localhost:5050/MoviesWatchedByUsers/modify',
+                          data=spark.movies_watched_by_users(user_ids).toPandas().to_json())
         elif answers['search_users'] == 'Return':
             repeat = False
 
@@ -206,7 +214,8 @@ def search_movies():
             })['movie_id']
             movie_id = int(movie_id)
             # core call
-            spark.search_movie_by_id(movie_id).show()
+            requests.post(url='http://localhost:5050/MoviesByID/modify',
+                          data=spark.search_movie_by_id(movie_id).toPandas().to_json())
         elif answers['search_movies'] == 'By title':
             movie_title = prompt({
                 'type': 'input',
@@ -214,7 +223,8 @@ def search_movies():
                 'message': 'Enter the movie title '
             })['movie_title']
             # core call
-            spark.search_movie_by_title(movie_title).show()
+            requests.post(url='http://localhost:5050/MoviesByTitle/modify',
+                          data=spark.search_movie_by_title(movie_title).toPandas().to_json())
         elif answers['search_movies'] == 'By year':
             movie_year = prompt({
                 'type': 'input',
@@ -224,8 +234,8 @@ def search_movies():
             })['movie_year']
             movie_year = int(movie_year)
             # core call
-            spark.search_movies_by_year(movie_year).show()
-
+            requests.post(url='http://localhost:5050/MoviesByYear/modify',
+                          data=spark.search_movies_by_year(movie_year).toPandas().to_json())
         elif answers['search_movies'] == 'Top n movies by rating':
             list_length = prompt({
                 'type': 'input',
@@ -235,7 +245,8 @@ def search_movies():
             })['list_length']
             list_length = int(list_length)
             # core call
-            spark.top_rating_movies(list_length, 'desc').show()
+            requests.post(url='http://localhost:5050/TopRatedMovies/modify',
+                          data=spark.top_rating_movies(list_length, 'desc').toPandas().to_json())
         elif answers['search_movies'] == 'top n movies by number of watches':
             list_length = prompt({
                 'type': 'input',
@@ -245,7 +256,8 @@ def search_movies():
             })['list_length']
             list_length = int(list_length)
             # core call
-            spark.top_watched_movies(list_length, 'desc').show()
+            requests.post(url='http://localhost:5050/TopWatchedMovies/modify',
+                          data=spark.top_watched_movies(list_length, 'desc').toPandas().to_json())
         elif answers['search_movies'] == 'Return':
             repeat = False
     return 0
@@ -261,7 +273,8 @@ def search_genres():
         'choices': choices
     })['genres']
     # call core
-    spark.search_movies_by_genres(genres).show()
+    requests.post(url='http://localhost:5050/MoviesPerGenre/modify',
+                  data=spark.search_movies_by_genres(genres).toPandas().to_json())
     return 0
 
 

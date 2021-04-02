@@ -100,8 +100,10 @@ class SparkInterface:
             .select(col("genres"), col("movieId"), col("title")).orderBy("title")
 
     def search_movies_by_year(self, year):
-        return self.__movies_df_with_year_col.filter(col("year") == year).select(col("year"), col("title")).orderBy(
-            "title")
+        return self.__movies_df_with_year_col\
+            .filter(col("year") == year)\
+            .select(col("year"), col('movieId'), col("title"))\
+            .orderBy("title")
 
     def top_rating_movies(self, length, order):
         return self.avg_rating_per_movie()\
