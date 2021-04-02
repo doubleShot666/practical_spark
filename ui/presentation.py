@@ -3,10 +3,9 @@ from bokeh.plotting import figure
 from bokeh.io import show, output_file
 from flask import Flask, jsonify, make_response, request
 from bokeh.layouts import column, row
-from bokeh.models import (Button, ColumnDataSource, CustomJS, DataTable,
-                          NumberFormatter, RangeSlider, TableColumn, Panel, HoverTool, AjaxDataSource, Toolbar)
+from bokeh.models import (Button, ColumnDataSource, CustomJS, DataTable, Text,
+                          NumberFormatter, RangeSlider, TableColumn, Panel, HoverTool, AjaxDataSource, Toolbar, Select)
 from bokeh.models.widgets import Tabs
-
 
 
 # styling a plot
@@ -56,8 +55,8 @@ class MoviesWatchedByUsers:
     def update(self, new_datset):
         self.dataset['users'] = list(new_datset['userId'])
         self.dataset['movies'] = list(new_datset['title'])
-        
-        
+
+
 class MoviesPerGenreByUser:
     def __init__(self):
         self.dataset = dict(genres=list(), count=list())
@@ -69,27 +68,30 @@ class MoviesPerGenreByUser:
             return result
         """)
         self.__source = AjaxDataSource(data_url='http://localhost:5050/MoviesPerGenreByUser',
-                                polling_interval=1000, adapter=self.__adapter)
+                                       polling_interval=1000, adapter=self.__adapter)
 
     def make_plot(self):
         columns = list(self.dataset.keys())
         p = figure(x_range=list(
-            ['Adventure','Animation','Children','Comedy','Fantasy',
-             'Romance','Action','Crime','Thriller','Mystery','Horror',
-             'Drama','War','Western','Sci-Fi','Musical','Film-Noir',
-             'IMAX','Documentary','(no genres listed)','(s listed)']),
-            y_range=(0,100), plot_height=600, plot_width=1000, title="Genre count")
+            ['Adventure', 'Animation', 'Children', 'Comedy', 'Fantasy',
+             'Romance', 'Action', 'Crime', 'Thriller', 'Mystery', 'Horror',
+             'Drama', 'War', 'Western', 'Sci-Fi', 'Musical', 'Film-Noir',
+             'IMAX', 'Documentary', '(no genres listed)', '(s listed)']),
+            y_range=(0, 100), plot_height=600, plot_width=1000,
+            title=" The number of movies/genre that a user has watched",
+            x_axis_label='Genre', y_axis_label='Nb. of movies')
         # Quad glyphs to create a histogram
         p.vbar(x=columns[0], top=columns[1], width=0.5, source=self.__source,
                line_color='black', fill_color='navy')
 
+        hover = HoverTool(tooltips=[('Count', '@count')])
+
         p.xaxis.major_label_orientation = 1
+        p.add_tools(hover)
         p = style(p)
         return p
 
     def make_dataset(self):
-        #data = df.toPandas()
-        #source = ColumnDataSource(data=dict(genres=list(data['genres']), count=list(data['count'])))
         return self.dataset
 
     def update(self, new_dataset):
@@ -340,6 +342,7 @@ def crossdomain(f):
         if requested_headers:
             h['Access-Control-Allow-Headers'] = requested_headers
         return resp
+
     wrapped_function.__name__ = f.__name__
     return wrapped_function
 
@@ -451,6 +454,3 @@ def modify_component8():
 # show and run
 Presenter.show()
 app.run(port=5050)
-
-
-
