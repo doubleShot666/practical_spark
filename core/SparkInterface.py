@@ -15,6 +15,7 @@ class SparkInterface:
         self.__reduced_ratings = None
         self.__reduced_tags = None
         self.__movies_user_df = None
+        self.__favor_genre_df = None
 
     def read_dataset(self, path):
         # Manually create schema to avoid possible problems when inferring schema and to gain time
@@ -37,14 +38,18 @@ class SparkInterface:
                                   StructField('timestamp', IntegerType(), True)])
         # Read csv file
         self.__links_df = self.__spark.read.csv(path + 'links.csv', header=True, schema=links_schema)
-        self.__tags_df = self.__spark.read.csv(path + 'tags.csv', header=True, schema=tags_schema)
+        self.__tags_df = self.__spark.read.csv(path + 'tags.csv', header=True, schema=tags_schema).dropna()
         self.__movies_df = self.__spark.read.csv(path + 'movies.csv', header=True, schema=movies_schema)
-        self.__ratings_df = self.__spark.read.csv(path + 'ratings.csv', header=True, schema=ratings_schema)
+        self.__ratings_df = self.__spark.read.csv(path + 'ratings.csv', header=True, schema=ratings_schema).dropna()
         self.prepare_dataset()
 
     def prepare_dataset(self):
-        self.__movies_df_split_genres = self.__movies_df.withColumn('genres',
-                                                                    explode(split(self.__movies_df.genres, "\\|")))
+        self.__movies_df_split_genres = self.__movies_df\
+            .withColumn('genres', explode(split(self.__movies_df.genres, "\\|")))\
+            .filter(self.__movies_df.genres != "(no genres listed)")\
+            .filter(self.__movies_df.genres != "(s listed)")\
+            .dropna()
+
         self.__movies_df_with_year_col = self.__movies_df \
             .withColumn('year',
                         regexp_extract(self.__movies_df['title'], '[1-2][0-9][0-9][0-9]', 0).cast(IntegerType())) \
@@ -53,6 +58,11 @@ class SparkInterface:
         self.__reduced_ratings = self.__ratings_df.select(col("userId"), col("movieId")).distinct()
         self.__reduced_tags = self.__tags_df.select(col("userId"), col("movieId")).distinct()
         self.__movies_user_df = self.__reduced_ratings.union(self.__reduced_tags).distinct().cache()
+
+        self.__favor_genre_df = self.__movies_df_split_genres\
+            .join(self.__ratings_df, self.__movies_df_split_genres.movieId == self.__ratings_df.movieId)\
+            .drop(self.__ratings_df.movieId)\
+            .drop(self.__ratings_df.timestamp)
 
     def movies_per_genre_watched_by_user(self, user_id):
         movies_user_info_df = self.__movies_user_df\
@@ -124,3 +134,108 @@ class SparkInterface:
                     .orderBy('genres')
                     .cache()
                     .toPandas()['genres'])
+
+    def favorite_genre_user(self, user_id, factor_genre):
+
+        genre_number_df = self.__favor_genre_df \
+            .filter(self.__favor_genre_df.userId == user_id) \
+            .groupBy(self.__favor_genre_df.genres) \
+            .count()
+
+        avg_rating_df = self.__favor_genre_df \
+            .filter(self.__favor_genre_df.userId == user_id) \
+            .groupBy(self.__favor_genre_df.genres) \
+            .agg(avg("rating").alias("avg_rating"))
+
+        user_favor_df = genre_number_df \
+            .join(avg_rating_df, genre_number_df.genres == avg_rating_df.genres, how='inner') \
+            .drop(genre_number_df.genres)
+
+        # count * factor + average_rating * ( 1 - factor)
+        weighted_df = user_favor_df.withColumn("genre_score", col('count') * factor_genre + col('avg_rating') * (
+                1 - factor_genre)).orderBy(col("genre_score"))
+
+        return weighted_df.toPandas()
+
+    def favorite_genre_usersgroup(self, user_ids, factor_genre):
+        genre_number_df = self.__favor_genre_df\
+            .filter(col("userId").isin(user_ids))\
+            .groupBy(self.__favor_genre_df.genres)\
+            .count()
+
+        avg_rating_df = self.__favor_genre_df\
+            .filter(col("userId").isin(user_ids))\
+            .groupBy(self.__favor_genre_df.genres)\
+            .agg(avg("rating").alias("avg_rating"))
+
+        user_favor_df = genre_number_df\
+            .join(avg_rating_df, genre_number_df.genres == avg_rating_df.genres, how='inner')\
+            .drop(genre_number_df.genres)
+
+        # count * factor + average_rating * ( 1 - factor)
+        weighted_df = user_favor_df\
+            .withColumn("genre_score", col('count') * factor_genre + col('avg_rating') * (1 - factor_genre))\
+            .orderBy(col("genre_score"))
+
+        return weighted_df.toPandas()
+
+    # compare movie taste: Number of common movie
+    #                      Similarity score
+    def compare_taste(self, uids):
+        uid1 = uids[0]
+        uid2 = uids[1]
+
+        user1_df = self.__favor_genre_df\
+            .filter(self.__favor_genre_df.userId == uid1)\
+            .dropDuplicates(["movieId"])\
+            .withColumnRenamed("rating", "rating_user1")
+
+        user2_df = self.__favor_genre_df\
+            .filter(self.__favor_genre_df.userId == uid2)\
+            .select(col("movieId"),col("rating"))\
+            .dropDuplicates(["movieId"])\
+            .withColumnRenamed("rating", "rating_user2")
+
+        common_movie_df = user1_df\
+            .join(user2_df, user1_df.movieId == user2_df.movieId, how='inner')\
+            .drop(user2_df.movieId)
+
+        return common_movie_df.toPandas()
+
+    def similarity_score(self, common_movie_pandasdf):
+
+        common_movie_pandasdf.eval('abs = abs(rating_user1 - rating_user2)', inplace=True)
+
+        abs_list = common_movie_pandasdf['abs'].values.tolist()
+
+        length = len(abs_list)
+
+        print("Note: The range of similarity score of two users' taste is 0-10, 10 means the most relevant ")
+
+        score = 0
+        for x in abs_list:
+            if x == 0.0:
+                score += 10
+            elif x == 0.5:
+                score += 8
+            elif x == 1.0:
+                score += 6
+            elif x == 1.5:
+                score += 5
+            elif x == 2.0:
+                score += 4
+            elif x == 2.5:
+                score += 3
+            elif x == 3.0:
+                score += 2
+            elif x == 3.5:
+                score += 1
+            elif x == 4.0:
+                score += 0.5
+            else:
+                score += 0  # x == 4.5
+        score = score / length
+        print("The similarity score of two users' taste is: ", score)
+        print("---------------------------------")
+        return score
+
