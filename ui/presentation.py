@@ -76,7 +76,7 @@ class MoviesPerGenreByUser:
             ['Adventure', 'Animation', 'Children', 'Comedy', 'Fantasy',
              'Romance', 'Action', 'Crime', 'Thriller', 'Mystery', 'Horror',
              'Drama', 'War', 'Western', 'Sci-Fi', 'Musical', 'Film-Noir',
-             'IMAX', 'Documentary', '(no genres listed)', '(s listed)']),
+             'IMAX', 'Documentary']),
             y_range=(0, 100), plot_height=600, plot_width=1000,
             title=" The number of movies/genre that a user has watched",
             x_axis_label='Genre', y_axis_label='Nb. of movies')

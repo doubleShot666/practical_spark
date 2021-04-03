@@ -137,6 +137,9 @@ def select_feature():
             'choices': ['Search for users',
                         'Search for movies',
                         'Search for genres',
+                        'Find the favourite genre of a user',
+                        'Find the favourite genre of users',
+                        'Compare the movie tastes of two users',
                         'Return']
         }
         answers = prompt(prompt_text)
@@ -146,6 +149,12 @@ def select_feature():
             search_movies()
         elif answers['features'] == 'Search for genres':
             search_genres()
+        elif answers['features'] == 'Find the favourite genre of a user':
+            genre_user()
+        elif answers['features'] == 'Find the favourite genre of users':
+            genre_group_users()
+        elif answers['features'] == 'Compare the movie tastes of two users':
+            compare_taste()
         elif answers['features'] == 'Return':
             repeat = False
 
@@ -276,6 +285,92 @@ def search_genres():
     requests.post(url='http://localhost:5050/MoviesPerGenre/modify',
                   data=spark.search_movies_by_genres(genres).toPandas().to_json())
     return 0
+
+
+def genre_user():
+    user_id = prompt({
+        'type': 'input',
+        'name': 'user_id',
+        'message': 'Enter the user ID ',
+    })['user_id']
+    uid = int(user_id)
+    factor = prompt({
+        'type': 'input',
+        'name': 'factor',
+        'message': 'Formula used: count * factor + average_rating * ( 1 - factor). Enter the factor ',
+    })['factor']
+    f = float(factor)
+    tastes = spark.favorite_genre_user(uid, f)
+
+    favourite_taste = tastes[-1:]['genres'].values[0]
+
+    print("---------------------------------")
+    print("The favourite genre of this user is:", favourite_taste)
+    print("---------------------------------")
+    print("The following table gives the whole analysis information about user's taste:")
+    print("Description: count - the number of specific genre movies watched. genres - the movie genre. "
+          "avg_rating - average rating of this user to this genre's movie. "
+          "genre_score - the calculate formula is [count * factor + average_rating * ( 1 - factor)]")
+    print("---------------------------------")
+    print(tastes)
+    print("---------------------------------")
+
+    return 0
+
+
+def genre_group_users():
+    user_ids = prompt({
+        'type': 'input',
+        'name': 'user_id',
+        'message': 'Enter the list of user IDs separated by a comma',
+    })['user_id']
+    uids = [int(i) for i in user_ids.split(',')]
+    factor = prompt({
+        'type': 'input',
+        'name': 'factor',
+        'message': 'Formula used: count * factor + average_rating * ( 1 - factor). Enter the factor ',
+    })['factor']
+    f = float(factor)
+    tastes = spark.favorite_genre_usersgroup(uids, f)
+
+    favourite_taste = tastes[-1:]['genres'].values[0]
+    print("---------------------------------")
+    print("The favourite genre of this group of users is:", favourite_taste)
+    print("---------------------------------")
+    print("The following table gives the whole analysis information about users' taste:")
+    print("Description: count - the number of specific genre movies watched. genres - the movie genre. "
+          "avg_rating - average rating of  user group to this genre's movie. "
+          "genre_score - the calculate formula is [count * factor + average_rating * ( 1 - factor)]")
+    print("---------------------------------")
+    print(tastes)
+    print("---------------------------------")
+
+    return 0
+
+
+def compare_taste():
+    user_ids = prompt({
+        'type': 'input',
+        'name': 'user_id',
+        'message': 'Enter the list of user IDs separated by a comma',
+    })['user_id']
+    uids = [int(i) for i in user_ids.split(',')]
+    common_movie_pandasdf = spark.compare_taste(uids)
+
+    num = len(common_movie_pandasdf)
+
+    print("Description: Movie taste is compared in two aspects. 1. Number of common watched movie by two users. "
+          "2. similarity score out of 10 based on ratings")
+    print("---------------------------------")
+    print("Number of common watched movies is :", num)
+    print("---------------------------------")
+    print("Table of common watched movies:")
+    print(common_movie_pandasdf)
+    print("---------------------------------")
+
+    spark.similarity_score(common_movie_pandasdf)
+
+    return uids
 
 
 if __name__ == '__main__':
