@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType
-from pyspark.sql.functions import *
+from pyspark.sql.functions import explode, split, regexp_extract, col, avg, count, levenshtein, lit
 
 
 class SparkInterface:
@@ -37,9 +37,9 @@ class SparkInterface:
                                   StructField('tag', StringType(), True),
                                   StructField('timestamp', IntegerType(), True)])
         # Read csv file
-        self.__links_df = self.__spark.read.csv(path + 'links.csv', header=True, schema=links_schema)
-        self.__tags_df = self.__spark.read.csv(path + 'tags.csv', header=True, schema=tags_schema).dropna()
-        self.__movies_df = self.__spark.read.csv(path + 'movies.csv', header=True, schema=movies_schema)
+        self.__links_df = self.__spark.read.csv(path + 'links.csv', header=True, schema=links_schema).dropna()
+        self.__tags_df = self.__spark.read.csv(path + 'tags.csv', header=True, schema=tags_schema).dropna().dropna()
+        self.__movies_df = self.__spark.read.csv(path + 'movies.csv', header=True, schema=movies_schema).dropna()
         self.__ratings_df = self.__spark.read.csv(path + 'ratings.csv', header=True, schema=ratings_schema).dropna()
         self.prepare_dataset()
 
@@ -238,4 +238,3 @@ class SparkInterface:
         print("The similarity score of two users' taste is: ", score)
         print("---------------------------------")
         return score
-
