@@ -1,12 +1,15 @@
 from __future__ import print_function, unicode_literals
 from PyInquirer import style_from_dict, Token, prompt
-from prompt_toolkit.validation import Validator, ValidationError
+from inputValidator import *
 import requests
 from core.SparkInterface import SparkInterface
 
-import re
-from os import path
+# This app displays on a terminal the features from the requirements in parts 1 and 2 of the practical
+# After entering the inputs required for a chosen feature, a call to the corresponding function in SparkInterface
+# is made. The results are either displayed on the terminal or sent via http as a POST request to the web app.
 
+
+# Style used by PyInquirer
 style = style_from_dict({
     Token.Separator: '#cc5454',
     Token.QuestionMark: '#673ab7 bold',
@@ -17,76 +20,11 @@ style = style_from_dict({
     Token.Question: '',
 })
 
+
 spark = SparkInterface()
+
+# The root url of the web app
 web_app_url = 'http://localhost:5050'
-
-
-class YearValidator(Validator):
-    def validate(self, document):
-        match = re.match(r'^[1-2][0-9][0-9][0-9]$', document.text)
-        if match is None:
-            raise ValidationError(
-                message="Please enter a valid year",
-                cursor_position=len(document.text)
-            )
-
-
-class IntValidator(Validator):
-    def validate(self, document):
-        try:
-            val = int(document.text)
-        except ValueError:
-            raise ValidationError(
-                message="Please enter a valid value",
-                cursor_position=len(document.text)
-            )
-
-
-class IdValidator(Validator):
-    def validate(self, document):
-        try:
-            id = int(document.text)
-        except ValueError:
-            raise ValidationError(
-                message="Please enter a valid id value",
-                cursor_position=len(document.text)
-            )
-
-
-class IdListValidator(Validator):
-    def validate(self, document):
-        try:
-            ids = [int(i) for i in document.text.split(',')]
-        except ValueError:
-            raise ValidationError(
-                message="Please enter a valid list of ids",
-                cursor_position=len(document.text)
-            )
-
-
-class DatasetPathValidator(Validator):
-    def validate(self, document):
-        dataset_path = document.text
-        if not path.isfile(dataset_path + 'links.csv'):
-            raise ValidationError(
-                message="Please enter a valid path to your dataset : links.csv not found",
-                cursor_position=len(document.text)
-            )
-        elif not path.isfile(dataset_path + 'movies.csv'):
-            raise ValidationError(
-                message="Please enter a valid path to your dataset : movies.csv not found",
-                cursor_position=len(document.text)
-            )
-        elif not path.isfile(dataset_path + 'ratings.csv'):
-            raise ValidationError(
-                message="Please enter a valid path to your dataset : ratings.csv not found",
-                cursor_position=len(document.text)
-            )
-        elif not path.isfile(dataset_path + 'tags.csv'):
-            raise ValidationError(
-                message="Please enter a valid path to your dataset : tags.csv not found",
-                cursor_position=len(document.text)
-            )
 
 
 def main_menu():
