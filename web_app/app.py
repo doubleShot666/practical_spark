@@ -31,14 +31,14 @@ component8 = MoviesPerGenre(web_app_url)
 class Presenter:
     @staticmethod
     def show():
-        tab1 = Panel(child=row([component1.make_plot()]), title="tab one")
-        tab2 = Panel(child=row([component2.make_plot()]), title="tab two")
-        tab3 = Panel(child=row([component3.make_plot()]), title="tab three")
-        tab4 = Panel(child=row([component4.make_plot()]), title="tab four")
-        tab5 = Panel(child=row([component5.make_plot()]), title="tab five")
-        tab6 = Panel(child=row([component6.make_plot()]), title="tab six")
-        tab7 = Panel(child=row([component7.make_plot()]), title="tab seven")
-        tab8 = Panel(child=row([component8.make_plot()]), title="tab eight")
+        tab1 = Panel(child=row([component1.make_plot()]), title="Count User's movies per genre")
+        tab2 = Panel(child=row([component2.make_plot()]), title="Search movies watched by users")
+        tab3 = Panel(child=row([component3.make_plot()]), title="Search movies by ID")
+        tab4 = Panel(child=row([component4.make_plot()]), title="Search movies by title")
+        tab5 = Panel(child=row([component5.make_plot()]), title="Search movies by year")
+        tab6 = Panel(child=row([component6.make_plot()]), title="Top rated movies")
+        tab7 = Panel(child=row([component7.make_plot()]), title="Top watched movies")
+        tab8 = Panel(child=row([component8.make_plot()]), title="Search movies per genre")
         tabs = Tabs(tabs=[tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8])
         show(tabs)
 
@@ -166,7 +166,6 @@ def modify_component8():
     return jsonify(data=component8.make_dataset())
 
 
-# show and run
 if __name__ == '__main__':
     Presenter.show()
     app.run(port=5050)
