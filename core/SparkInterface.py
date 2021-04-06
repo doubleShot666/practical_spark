@@ -1,6 +1,10 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType
-from pyspark.sql.functions import explode, split, regexp_extract, col, avg, count, levenshtein, lit
+from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, BooleanType
+from pyspark.sql.functions import explode, split, regexp_extract, col, avg, count, levenshtein, lit, udf
+from Levenshtein import distance as levenshtein_distance
+
+distance = udf(lambda c1, c2: sum(1 for word in c1.split() if (levenshtein_distance(c2, word) < 3)) >= 1,
+               BooleanType())
 
 
 class SparkInterface:
@@ -44,10 +48,10 @@ class SparkInterface:
         self.prepare_dataset()
 
     def prepare_dataset(self):
-        self.__movies_df_split_genres = self.__movies_df\
-            .withColumn('genres', explode(split(self.__movies_df.genres, "\\|")))\
-            .filter(self.__movies_df.genres != "(no genres listed)")\
-            .filter(self.__movies_df.genres != "(s listed)")\
+        self.__movies_df_split_genres = self.__movies_df \
+            .withColumn('genres', explode(split(self.__movies_df.genres, "\\|"))) \
+            .filter(self.__movies_df.genres != "(no genres listed)") \
+            .filter(self.__movies_df.genres != "(s listed)") \
             .dropna()
 
         self.__movies_df_with_year_col = self.__movies_df \
@@ -59,16 +63,16 @@ class SparkInterface:
         self.__reduced_tags = self.__tags_df.select(col("userId"), col("movieId")).distinct()
         self.__movies_user_df = self.__reduced_ratings.union(self.__reduced_tags).distinct().cache()
 
-        self.__favor_genre_df = self.__movies_df_split_genres\
-            .join(self.__ratings_df, self.__movies_df_split_genres.movieId == self.__ratings_df.movieId)\
-            .drop(self.__ratings_df.movieId)\
+        self.__favor_genre_df = self.__movies_df_split_genres \
+            .join(self.__ratings_df, self.__movies_df_split_genres.movieId == self.__ratings_df.movieId) \
+            .drop(self.__ratings_df.movieId) \
             .drop(self.__ratings_df.timestamp)
 
     def movies_per_genre_watched_by_user(self, user_id):
-        movies_user_info_df = self.__movies_user_df\
+        movies_user_info_df = self.__movies_user_df \
             .join(self.__movies_df_split_genres,
                   self.__movies_user_df.movieId == self.__movies_df_split_genres.movieId,
-                  how='inner')\
+                  how='inner') \
             .filter(col("userId") == user_id) \
             .groupby(col("userId"), col("genres")) \
             .count() \
@@ -77,10 +81,10 @@ class SparkInterface:
 
     def movies_watched_by_users(self, user_ids):
         # All movies watched by each user of a given list of users
-        results = self.__movies_user_df\
+        results = self.__movies_user_df \
             .join(self.__movies_df_with_year_col,
                   self.__movies_user_df.movieId == self.__movies_df_with_year_col.movieId,
-                  how='inner')\
+                  how='inner') \
             .select(col("userId"), col("title")) \
             .distinct() \
             .filter(col("userId").isin(user_ids)) \
@@ -100,8 +104,10 @@ class SparkInterface:
 
     def search_movie_by_title(self, title):
         return self.__movies_df.withColumn("key_word", lit(title)) \
-            .filter(self.__movies_df.title.contains(title) | (levenshtein(col("title"), col("key_word")) < 4)) \
+            .withColumn("distance", distance(self.__movies_df.title, col("key_word"))) \
+            .filter(self.__movies_df.title.contains(title) | col("distance")) \
             .drop("key_word") \
+            .drop("distance") \
             .join(self.avg_rating_per_movie(), on='movieId', how='inner') \
             .join(self.count_user_per_movie(), on='movieId', how='inner')
 
@@ -110,22 +116,22 @@ class SparkInterface:
             .select(col("genres"), col("movieId"), col("title")).orderBy("title")
 
     def search_movies_by_year(self, year):
-        return self.__movies_df_with_year_col\
-            .filter(col("year") == year)\
-            .select(col("year"), col('movieId'), col("title"))\
+        return self.__movies_df_with_year_col \
+            .filter(col("year") == year) \
+            .select(col("year"), col('movieId'), col("title")) \
             .orderBy("title")
 
     def top_rating_movies(self, length, order):
-        return self.avg_rating_per_movie()\
-            .orderBy(col("avg").desc())\
-            .limit(length)\
+        return self.avg_rating_per_movie() \
+            .orderBy(col("avg").desc()) \
+            .limit(length) \
             .join(self.__movies_df, on="movieId", how="inner")
 
     def top_watched_movies(self, length, order):
-        return self.count_user_per_movie()\
-            .orderBy(col("nb_users").desc())\
-            .limit(length)\
-            .join(self.__movies_df, on="movieId", how="inner")\
+        return self.count_user_per_movie() \
+            .orderBy(col("nb_users").desc()) \
+            .limit(length) \
+            .join(self.__movies_df, on="movieId", how="inner") \
             .orderBy(col("nb_users").desc())
 
     def get_genres_list(self):
@@ -158,23 +164,23 @@ class SparkInterface:
         return weighted_df.toPandas()
 
     def favorite_genre_usersgroup(self, user_ids, factor_genre):
-        genre_number_df = self.__favor_genre_df\
-            .filter(col("userId").isin(user_ids))\
-            .groupBy(self.__favor_genre_df.genres)\
+        genre_number_df = self.__favor_genre_df \
+            .filter(col("userId").isin(user_ids)) \
+            .groupBy(self.__favor_genre_df.genres) \
             .count()
 
-        avg_rating_df = self.__favor_genre_df\
-            .filter(col("userId").isin(user_ids))\
-            .groupBy(self.__favor_genre_df.genres)\
+        avg_rating_df = self.__favor_genre_df \
+            .filter(col("userId").isin(user_ids)) \
+            .groupBy(self.__favor_genre_df.genres) \
             .agg(avg("rating").alias("avg_rating"))
 
-        user_favor_df = genre_number_df\
-            .join(avg_rating_df, genre_number_df.genres == avg_rating_df.genres, how='inner')\
+        user_favor_df = genre_number_df \
+            .join(avg_rating_df, genre_number_df.genres == avg_rating_df.genres, how='inner') \
             .drop(genre_number_df.genres)
 
         # count * factor + average_rating * ( 1 - factor)
-        weighted_df = user_favor_df\
-            .withColumn("genre_score", col('count') * factor_genre + col('avg_rating') * (1 - factor_genre))\
+        weighted_df = user_favor_df \
+            .withColumn("genre_score", col('count') * factor_genre + col('avg_rating') * (1 - factor_genre)) \
             .orderBy(col("genre_score"))
 
         return weighted_df.toPandas()
@@ -185,19 +191,19 @@ class SparkInterface:
         uid1 = uids[0]
         uid2 = uids[1]
 
-        user1_df = self.__favor_genre_df\
-            .filter(self.__favor_genre_df.userId == uid1)\
-            .dropDuplicates(["movieId"])\
+        user1_df = self.__favor_genre_df \
+            .filter(self.__favor_genre_df.userId == uid1) \
+            .dropDuplicates(["movieId"]) \
             .withColumnRenamed("rating", "rating_user1")
 
-        user2_df = self.__favor_genre_df\
-            .filter(self.__favor_genre_df.userId == uid2)\
-            .select(col("movieId"),col("rating"))\
-            .dropDuplicates(["movieId"])\
+        user2_df = self.__favor_genre_df \
+            .filter(self.__favor_genre_df.userId == uid2) \
+            .select(col("movieId"), col("rating")) \
+            .dropDuplicates(["movieId"]) \
             .withColumnRenamed("rating", "rating_user2")
 
-        common_movie_df = user1_df\
-            .join(user2_df, user1_df.movieId == user2_df.movieId, how='inner')\
+        common_movie_df = user1_df \
+            .join(user2_df, user1_df.movieId == user2_df.movieId, how='inner') \
             .drop(user2_df.movieId)
 
         return common_movie_df.toPandas()
