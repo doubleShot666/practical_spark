@@ -1,0 +1,20 @@
+similarity_score():
+
+Calculate similarity score out of 10 based on two users' ratings on these common movies.
+
+param:
+ 	self: class instance
+	common_movie_pandasdf: pandas dataframe of two users' common watched movies and ratings.
+return:
+	The similarity score
+
+
+compare_taste():
+
+It generates the dataframe of two users' common watched movies to compare the movie tastes of two users.
+
+param:
+ 	self: class instance
+	uids: ids  of two users to be compared
+return:
+	The dataframe of two users' common watched movies(movieId, title, genres, rating_user1,rating_user2 )
