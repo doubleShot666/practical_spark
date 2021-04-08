@@ -308,7 +308,7 @@ class SparkInterface:
 
     def compare_taste(self, uids):
         """
-        Compare the movie tastes of two users.
+        Generate the dataframe of two users' common watched movies to compare the movie tastes of two users.
 
         Movie taste is compared in two aspects.
             1. Number of common watched movies by two users.
@@ -339,9 +339,10 @@ class SparkInterface:
 
     def similarity_score(self, common_movie_pandasdf):
         """
+        Calculate similarity score out of 10 based on two users' ratings on these common movies.
 
-        :param common_movie_pandasdf:
-        :return:
+        :param common_movie_pandasdf: pandas dataframe of two users' common watched movies and ratings.
+        :return: The similarity score
         """
 
         common_movie_pandasdf.eval('abs = abs(rating_user1 - rating_user2)', inplace=True)

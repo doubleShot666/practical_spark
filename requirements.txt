@@ -8,3 +8,4 @@ bokeh~=2.3.0
 requests~=2.25.1
 Flask~=1.1.2
 levenshtein~=0.12.0
+jupyter~=1.0.0
