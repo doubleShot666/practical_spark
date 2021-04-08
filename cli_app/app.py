@@ -1,6 +1,6 @@
 from __future__ import print_function, unicode_literals
 from PyInquirer import style_from_dict, Token, prompt
-from inputValidator import *
+from cli_app.inputValidator import *
 import requests
 from core.SparkInterface import SparkInterface
 
@@ -52,7 +52,7 @@ def read_dataset():
         'validate': DatasetPathValidator
     }
     answers = prompt(prompt_text)
-    spark.read_dataset(answers['dataset'])
+    spark.read_dataset(answers['dataset']+'\\')
     select_feature()
 
 

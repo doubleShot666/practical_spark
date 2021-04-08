@@ -50,7 +50,7 @@ class IdListValidator(Validator):
 
 class DatasetPathValidator(Validator):
     def validate(self, document):
-        dataset_path = document.text
+        dataset_path = document.text + "\\"
         if not path.isfile(dataset_path + 'links.csv'):
             raise ValidationError(
                 message="Please enter a valid path to your dataset : links.csv not found",
