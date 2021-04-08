@@ -1,8 +1,7 @@
 # Project structure :
 1. _cli_app_ folder contains the source code relative to the interactive command line interface implemented with PyInquirer library.
 2. _web_app_ folder contains the source code of the web application impleemnted with Flask and responsible for hosting the Bokeh application to display results on the browser
-3. _data_ folder contains the datasets from MovieLens website
-4. _core_ contains the implementation of the requirements using Spark 
+3. _core_ contains the implementation of the requirements using Spark 
 
 # Running the program :
 
